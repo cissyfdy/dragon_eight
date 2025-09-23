@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class PendaftaranUjianController extends Controller
@@ -22,6 +23,7 @@ class PendaftaranUjianController extends Controller
             $existing = DB::table('pendaftaran_ujian')
                 ->where('murid_id', $request->murid_id)
                 ->where('ujian_id', $request->ujian_id)
+                ->whereNotIn('status_pendaftaran', ['dibatalkan']) // Exclude cancelled registrations
                 ->first();
 
             if ($existing) {
@@ -49,6 +51,7 @@ class PendaftaranUjianController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            Log::error('Error in store method: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Terjadi kesalahan: ' . $e->getMessage()
@@ -68,6 +71,14 @@ class PendaftaranUjianController extends Controller
                 ], 404);
             }
 
+            // Check if already paid - prevent cancellation if paid
+            if ($pendaftaran->status_pembayaran === 'sudah_bayar') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tidak dapat membatalkan pendaftaran yang sudah dibayar'
+                ], 400);
+            }
+
             // Update status to cancelled
             DB::table('pendaftaran_ujian')
                 ->where('id', $id)
@@ -82,6 +93,7 @@ class PendaftaranUjianController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            Log::error('Error in cancel method: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Terjadi kesalahan: ' . $e->getMessage()
@@ -92,8 +104,11 @@ class PendaftaranUjianController extends Controller
     public function confirmPayment($id, Request $request)
     {
         try {
+            // Validate input including the new fields
             $request->validate([
-                'tanggal_bayar' => 'required|date'
+                'tanggal_bayar' => 'required|date',
+                'status_pendaftaran' => 'nullable|string|in:terdaftar,diterima,ditolak',
+                'status_pembayaran' => 'nullable|string|in:belum_bayar,sudah_bayar,refund'
             ]);
 
             $pendaftaran = DB::table('pendaftaran_ujian')->where('id', $id)->first();
@@ -105,26 +120,50 @@ class PendaftaranUjianController extends Controller
                 ], 404);
             }
 
-            // Update payment status
+            // Check if already paid
+            if ($pendaftaran->status_pembayaran === 'sudah_bayar') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pendaftaran sudah dalam status sudah bayar'
+                ], 400);
+            }
+
+            // Prepare update data
+            $updateData = [
+                'status_pembayaran' => $request->status_pembayaran ?? 'sudah_bayar',
+                'tanggal_bayar' => $request->tanggal_bayar,
+                'updated_at' => now()
+            ];
+
+            // If status_pendaftaran is provided, update it as well
+            if ($request->has('status_pendaftaran')) {
+                $updateData['status_pendaftaran'] = $request->status_pendaftaran;
+            } else {
+                // Auto-set to 'diterima' when payment is confirmed
+                $updateData['status_pendaftaran'] = 'diterima';
+            }
+
+            // Update payment and registration status
             DB::table('pendaftaran_ujian')
                 ->where('id', $id)
-                ->update([
-                    'status_pembayaran' => 'sudah_bayar',
-                    'tanggal_bayar' => $request->tanggal_bayar,
-                    'updated_at' => now()
-                ]);
+                ->update($updateData);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Pembayaran berhasil dikonfirmasi'
+                'message' => 'Pembayaran berhasil dikonfirmasi dan status berubah menjadi diterima'
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+                'message' => 'Data tidak valid: ' . implode(', ', $e->errors()['tanggal_bayar'] ?? $e->errors())
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Error in confirmPayment method: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan sistem: ' . $e->getMessage()
             ], 500);
         }
     }
-    
 }

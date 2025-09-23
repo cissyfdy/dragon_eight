@@ -484,411 +484,194 @@
                 });
         }
 
-        // Load ujian yang tersedia untuk didaftarkan
-        function loadAvailableUjian() {
-            const selectElement = document.getElementById('selectUjian');
-            selectElement.innerHTML = '<option value="">Memuat ujian...</option>';
 
-            fetch('/api/ujian-tersedia')
-                .then(response => {
-                    console.log('Response status:', response.status);
-                    console.log('Response headers:', response.headers.get('content-type'));
-                    
-                    if (!response.ok) {
-                        return response.text().then(text => {
-                            console.error('Error response text:', text);
-                            throw new Error(`HTTP ${response.status}: ${text}`);
-                        });
-                    }
-                    
-                    const contentType = response.headers.get('content-type');
-                    if (!contentType || !contentType.includes('application/json')) {
-                        return response.text().then(text => {
-                            console.error('Non-JSON response:', text);
-                            throw new Error('Response bukan JSON format');
-                        });
-                    }
-                    
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Available ujian data:', data);
-                    
-                    selectElement.innerHTML = '<option value="">Pilih ujian...</option>';
-                    
-                    if (data.error) {
-                        throw new Error(data.error);
-                    }
-                    
-                    if (!data || data.length === 0) {
-                        selectElement.innerHTML = '<option value="">Tidak ada ujian tersedia</option>';
-                        return;
-                    }
-                    
-                    data.forEach((ujian, index) => {
-                        console.log(`Ujian ${index}:`, ujian);
-                        
-                        const option = document.createElement('option');
-                        option.value = ujian.ujian_id || ujian.id || '';
-                        
-                        const namaUjian = ujian.nama_ujian || 'N/A';
-                        const tanggalUjian = new Date(ujian.tanggal_ujian).toLocaleDateString('id-ID');
-                        const sabukInfo = `${ujian.sabuk_dari} → ${ujian.sabuk_ke}`;
-                        const biaya = new Intl.NumberFormat('id-ID', {
-                            style: 'currency',
-                            currency: 'IDR'
-                        }).format(ujian.biaya_ujian || 0);
-                        
-                        option.textContent = `${namaUjian} (${tanggalUjian}) - ${sabukInfo} - ${biaya}`;
-                        option.dataset.ujian = JSON.stringify(ujian);
-                        
-                        selectElement.appendChild(option);
-                    });
-                })
-                .catch(error => {
-                    console.error('Error loading available ujian:', error);
-                    selectElement.innerHTML = `<option value="">Error: ${error.message}</option>`;
-                    alert('Error memuat ujian: ' + error.message);
-                });
+function bayarUjian(pendaftaranId) {
+    if (!confirm('Konfirmasi pembayaran ujian? Status akan berubah menjadi "Diterima".')) return;
+        
+    const csrfToken = document.querySelector('meta[name="csrf-token"]');
+    if (!csrfToken) {
+        alert('CSRF token tidak tersedia. Silakan refresh halaman.');
+        return;
+    }
+    
+    // Prepare the request data
+    const requestData = {
+        tanggal_bayar: new Date().toISOString().split('T')[0],
+        status_pendaftaran: 'diterima',
+        status_pembayaran: 'sudah_bayar'
+    };
+    
+    console.log('Sending payment request:', requestData); // Debug log
+    
+    fetch(`/pendaftaran-ujian/bayar/${pendaftaranId}`, {
+        method: 'PUT',
+        headers: {
+            'X-CSRF-TOKEN': csrfToken.getAttribute('content'),
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+        
+        // Handle non-JSON responses
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            return response.text().then(text => {
+                console.error('Non-JSON response:', text);
+                throw new Error(`Server returned non-JSON response: ${text.substring(0, 100)}...`);
+            });
         }
-
-        // Event listener untuk dropdown ujian
-        document.getElementById('selectUjian').addEventListener('change', function() {
-            const selectedOption = this.options[this.selectedIndex];
-            const ujianInfo = document.getElementById('ujianInfo');
-            const ujianDetails = document.getElementById('ujianDetails');
-            
-            if (selectedOption.dataset.ujian) {
-                const ujian = JSON.parse(selectedOption.dataset.ujian);
-                const tanggalUjian = new Date(ujian.tanggal_ujian).toLocaleDateString('id-ID');
-                const biaya = new Intl.NumberFormat('id-ID', {
-                    style: 'currency',
-                    currency: 'IDR'
-                }).format(ujian.biaya_ujian || 0);
-                
-                ujianDetails.innerHTML = `
-                    <div class="row">
-                        <div class="col-md-6">
-                            <strong>Tanggal:</strong> ${tanggalUjian}<br>
-                            <strong>Waktu:</strong> ${ujian.waktu_mulai} - ${ujian.waktu_selesai}<br>
-                            <strong>Unit:</strong> ${ujian.nama_unit || 'N/A'}
-                        </div>
-                        <div class="col-md-6">
-                            <strong>Pelatih:</strong> ${ujian.nama_pelatih || 'N/A'}<br>
-                            <strong>Biaya:</strong> ${biaya}<br>
-                            <strong>Kuota:</strong> ${ujian.kuota_peserta || 'N/A'} peserta
-                        </div>
-                    </div>
-                    ${ujian.persyaratan ? `<div class="mt-2"><strong>Persyaratan:</strong><br>${ujian.persyaratan}</div>` : ''}
-                    ${ujian.keterangan ? `<div class="mt-2"><strong>Keterangan:</strong><br>${ujian.keterangan}</div>` : ''}
-                `;
-                ujianInfo.style.display = 'block';
-            } else {
-                ujianInfo.style.display = 'none';
+        
+        return response.json().then(data => {
+            if (!response.ok) {
+                throw new Error(data.message || `HTTP error! status: ${response.status}`);
             }
+            return data;
         });
-
-        // Simpan jadwal baru
-        function simpanJadwal() {
-            const jadwalId = document.getElementById('selectJadwal').value;
-            const tanggalDaftar = document.getElementById('tanggalDaftar').value;
-            const muridId = '{{ $murid->murid_id }}';
-            const csrfToken = document.querySelector('meta[name="csrf-token"]');
-            
-            // Validasi input
-            if (!jadwalId || !tanggalDaftar) {
-                alert('Mohon lengkapi semua field');
-                return;
+    })
+    .then(data => {
+        console.log('Payment response:', data);
+        
+        if (data.success) {
+            alert(data.message || 'Pembayaran berhasil dikonfirmasi. Status berubah menjadi "Diterima".');
+            loadUjianMurid(); // Reload data
+        } else {
+            alert('Error: ' + (data.message || 'Gagal mengkonfirmasi pembayaran'));
+        }
+    })
+    .catch(error => {
+        console.error('Payment error details:', error);
+        
+        // More specific error messages
+        let errorMessage = 'Terjadi kesalahan sistem';
+        if (error.message) {
+            if (error.message.includes('JSON')) {
+                errorMessage = 'Server mengembalikan response yang tidak valid. Silakan coba lagi.';
+            } else if (error.message.includes('Network')) {
+                errorMessage = 'Koneksi internet bermasalah. Periksa koneksi Anda.';
+            } else {
+                errorMessage = error.message;
             }
+        }
+        
+        alert(errorMessage);
+    });
+}
 
-            if (!csrfToken) {
-                alert('CSRF token tidak tersedia. Silakan refresh halaman.');
-                return;
-            }
+// Improved simpanUjian function with better error handling
+function simpanUjian() {
+    const ujianId = document.getElementById('selectUjian').value;
+    const tanggalDaftar = document.getElementById('tanggalDaftarUjian').value;
+    const catatan = document.getElementById('catatanPendaftaran').value;
+    const muridId = '{{ $murid->murid_id }}';
+    const csrfToken = document.querySelector('meta[name="csrf-token"]');
+    
+    // Validasi input
+    if (!ujianId || !tanggalDaftar) {
+        alert('Mohon lengkapi semua field yang wajib diisi');
+        return;
+    }
 
-            // Show loading
-            document.getElementById('loadingMessage').style.display = 'block';
-            document.getElementById('btnSimpan').disabled = true;
-            document.getElementById('formTambahJadwal').style.display = 'none';
-            
-            const requestData = {
-                murid_id: muridId,
-                jadwal_id: jadwalId,
-                tanggal_daftar: tanggalDaftar
-            };
+    if (!csrfToken) {
+        alert('CSRF token tidak tersedia. Silakan refresh halaman.');
+        return;
+    }
 
-            console.log('Sending data:', requestData); // Debug log
-            
-            fetch('/pendaftaran-jadwal/daftar', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken.getAttribute('content'),
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify(requestData)
-            })
-            .then(response => {
-                console.log('Response status:', response.status); // Debug log
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Response data:', data); // Debug log
-                
-                // Hide loading
-                document.getElementById('loadingMessage').style.display = 'none';
-                document.getElementById('btnSimpan').disabled = false;
-                document.getElementById('formTambahJadwal').style.display = 'block';
-                
-                if (data.success) {
-                    alert(data.message || 'Jadwal berhasil ditambahkan');
-                    
-                    // Close modal
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('tambahJadwalModal'));
-                    if (modal) {
-                        modal.hide();
-                    }
-                    
-                    // Reset form dan reload data
-                    document.getElementById('formTambahJadwal').reset();
-                    document.getElementById('tanggalDaftar').value = '{{ date("Y-m-d") }}';
-                    loadJadwalMurid();
-                    loadAvailableJadwal(); // Reload untuk update jadwal yang tersedia
-                } else {
-                    alert('Error: ' + (data.message || 'Terjadi kesalahan'));
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                
-                // Hide loading
-                document.getElementById('loadingMessage').style.display = 'none';
-                document.getElementById('btnSimpan').disabled = false;
-                document.getElementById('formTambahJadwal').style.display = 'block';
-                
-                alert('Terjadi kesalahan sistem: ' + error.message);
+    // Show loading
+    document.getElementById('loadingMessageUjian').style.display = 'block';
+    document.getElementById('btnSimpanUjian').disabled = true;
+    document.getElementById('formTambahUjian').style.display = 'none';
+    
+    const requestData = {
+        murid_id: muridId,
+        ujian_id: parseInt(ujianId), // Ensure it's an integer
+        tanggal_daftar: tanggalDaftar,
+        catatan_pendaftaran: catatan || null
+    };
+
+    console.log('Sending ujian registration data:', requestData); // Debug log
+    
+    fetch('/pendaftaran-ujian/daftar', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken.getAttribute('content'),
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        
+        // Check for content type
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            return response.text().then(text => {
+                console.error('Non-JSON response:', text);
+                throw new Error(`Server returned non-JSON response: ${text.substring(0, 200)}...`);
             });
         }
-
-        // Simpan ujian baru
-        function simpanUjian() {
-            const ujianId = document.getElementById('selectUjian').value;
-            const tanggalDaftar = document.getElementById('tanggalDaftarUjian').value;
-            const catatan = document.getElementById('catatanPendaftaran').value;
-            const muridId = '{{ $murid->murid_id }}';
-            const csrfToken = document.querySelector('meta[name="csrf-token"]');
-            
-            // Validasi input
-            if (!ujianId || !tanggalDaftar) {
-                alert('Mohon lengkapi semua field yang wajib diisi');
-                return;
+        
+        return response.json().then(data => {
+            if (!response.ok) {
+                throw new Error(data.message || `HTTP error! status: ${response.status}`);
             }
-
-            if (!csrfToken) {
-                alert('CSRF token tidak tersedia. Silakan refresh halaman.');
-                return;
+            return data;
+        });
+    })
+    .then(data => {
+        console.log('Registration response:', data);
+        
+        // Hide loading
+        document.getElementById('loadingMessageUjian').style.display = 'none';
+        document.getElementById('btnSimpanUjian').disabled = false;
+        document.getElementById('formTambahUjian').style.display = 'block';
+        
+        if (data.success) {
+            alert(data.message || 'Pendaftaran ujian berhasil ditambahkan');
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('tambahUjianModal'));
+            if (modal) {
+                modal.hide();
             }
-
-            // Show loading
-            document.getElementById('loadingMessageUjian').style.display = 'block';
-            document.getElementById('btnSimpanUjian').disabled = true;
-            document.getElementById('formTambahUjian').style.display = 'none';
             
-            const requestData = {
-                murid_id: muridId,
-                ujian_id: ujianId,
-                tanggal_daftar: tanggalDaftar,
-                catatan_pendaftaran: catatan || null
-            };
-
-            console.log('Sending ujian data:', requestData); // Debug log
-            
-            fetch('/pendaftaran-ujian/daftar', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken.getAttribute('content'),
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify(requestData)
-            })
-            .then(response => {
-                console.log('Response status:', response.status); // Debug log
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Response data:', data); // Debug log
-                
-                // Hide loading
-                document.getElementById('loadingMessageUjian').style.display = 'none';
-                document.getElementById('btnSimpanUjian').disabled = false;
-                document.getElementById('formTambahUjian').style.display = 'block';
-                
-                if (data.success) {
-                    alert(data.message || 'Pendaftaran ujian berhasil ditambahkan');
-                    
-                    // Close modal
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('tambahUjianModal'));
-                    if (modal) {
-                        modal.hide();
-                    }
-                    
-                    // Reset form dan reload data
-                    document.getElementById('formTambahUjian').reset();
-                    document.getElementById('tanggalDaftarUjian').value = '{{ date("Y-m-d") }}';
-                    document.getElementById('ujianInfo').style.display = 'none';
-                    loadUjianMurid();
-                    loadAvailableUjian(); // Reload untuk update ujian yang tersedia
-                } else {
-                    alert('Error: ' + (data.message || 'Terjadi kesalahan'));
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                
-                // Hide loading
-                document.getElementById('loadingMessageUjian').style.display = 'none';
-                document.getElementById('btnSimpanUjian').disabled = false;
-                document.getElementById('formTambahUjian').style.display = 'block';
-                
-                alert('Terjadi kesalahan sistem: ' + error.message);
-            });
+            // Reset form dan reload data
+            document.getElementById('formTambahUjian').reset();
+            document.getElementById('tanggalDaftarUjian').value = '{{ date("Y-m-d") }}';
+            document.getElementById('ujianInfo').style.display = 'none';
+            loadUjianMurid();
+            loadAvailableUjian();
+        } else {
+            alert('Error: ' + (data.message || 'Terjadi kesalahan'));
         }
-
-        // Batalkan jadwal
-        function batalJadwal(pendaftaranId) {
-            if (!confirm('Yakin ingin membatalkan jadwal ini?')) return;
-            
-            const csrfToken = document.querySelector('meta[name="csrf-token"]');
-            if (!csrfToken) {
-                alert('CSRF token tidak tersedia. Silakan refresh halaman.');
-                return;
+    })
+    .catch(error => {
+        console.error('Registration error:', error);
+        
+        // Hide loading
+        document.getElementById('loadingMessageUjian').style.display = 'none';
+        document.getElementById('btnSimpanUjian').disabled = false;
+        document.getElementById('formTambahUjian').style.display = 'block';
+        
+        // Better error messages
+        let errorMessage = 'Terjadi kesalahan sistem';
+        if (error.message) {
+            if (error.message.includes('already registered') || error.message.includes('sudah terdaftar')) {
+                errorMessage = 'Anda sudah terdaftar untuk ujian ini.';
+            } else if (error.message.includes('JSON')) {
+                errorMessage = 'Server mengembalikan response yang tidak valid. Silakan refresh halaman dan coba lagi.';
+            } else {
+                errorMessage = error.message;
             }
-            
-            fetch(`/pendaftaran-jadwal/batal/${pendaftaranId}`, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken.getAttribute('content'),
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Cancel response:', data); // Debug log
-                
-                if (data.success) {
-                    alert(data.message || 'Jadwal berhasil dibatalkan');
-                    loadJadwalMurid(); // Reload data
-                    loadAvailableJadwal(); // Reload untuk update jadwal yang tersedia
-                } else {
-                    alert('Error: ' + (data.message || 'Gagal membatalkan jadwal'));
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Terjadi kesalahan sistem: ' + error.message);
-            });
         }
-
-        // Batalkan ujian
-        function batalUjian(pendaftaranId) {
-            if (!confirm('Yakin ingin membatalkan pendaftaran ujian ini?')) return;
-            
-            const csrfToken = document.querySelector('meta[name="csrf-token"]');
-            if (!csrfToken) {
-                alert('CSRF token tidak tersedia. Silakan refresh halaman.');
-                return;
-            }
-            
-            fetch(`/pendaftaran-ujian/batal/${pendaftaranId}`, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken.getAttribute('content'),
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Cancel ujian response:', data); // Debug log
-                
-                if (data.success) {
-                    alert(data.message || 'Pendaftaran ujian berhasil dibatalkan');
-                    loadUjianMurid(); // Reload data
-                    loadAvailableUjian(); // Reload untuk update ujian yang tersedia
-                } else {
-                    alert('Error: ' + (data.message || 'Gagal membatalkan pendaftaran ujian'));
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Terjadi kesalahan sistem: ' + error.message);
-            });
-        }
-
-        // Bayar ujian 
-        function bayarUjian(pendaftaranId) {
-            if (!confirm('Konfirmasi pembayaran ujian? Status akan berubah menjadi "Diterima".')) return;
-                
-            const csrfToken = document.querySelector('meta[name="csrf-token"]');
-            if (!csrfToken) {
-                alert('CSRF token tidak tersedia. Silakan refresh halaman.');
-                return;
-            }
-            
-            fetch(`/pendaftaran-ujian/bayar/${pendaftaranId}`, {
-                method: 'PUT',
-                headers: {
-                    'X-CSRF-TOKEN': csrfToken.getAttribute('content'),
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    tanggal_bayar: new Date().toISOString().split('T')[0],
-                    status_pendaftaran: 'diterima', // Automatically set to accepted when paid
-                    status_pembayaran: 'sudah_bayar'
-                })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Payment response:', data); // Debug log
-                
-                if (data.success) {
-                    alert(data.message || 'Pembayaran berhasil dikonfirmasi. Status berubah menjadi "Diterima".');
-                    loadUjianMurid(); // Reload data
-                } else {
-                    alert('Error: ' + (data.message || 'Gagal mengkonfirmasi pembayaran'));
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Terjadi kesalahan sistem: ' + error.message);
-            });
-        }
+        
+        alert(errorMessage);
+    });
+}
 
         // Event listener untuk modal reset - Jadwal
         document.getElementById('tambahJadwalModal').addEventListener('hidden.bs.modal', function () {

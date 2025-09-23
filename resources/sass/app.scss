@@ -1,0 +1,185 @@
+// Fonts
+@import url('https://fonts.bunny.net/css?family=Nunito:300,400,500,600,700');
+
+// Variables
+:root {
+    --bs-font-sans-serif: 'Nunito', sans-serif;
+    --bs-primary: #007bff;
+    --bs-secondary: #6c757d;
+    --dragon-blue: #2563eb;
+    --dragon-red: #dc2626;
+}
+
+// Bootstrap
+@import 'bootstrap/scss/bootstrap';
+
+// Custom styles
+body {
+    font-family: var(--bs-font-sans-serif);
+    line-height: 1.6;
+}
+
+// Navigation
+.navbar {
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+    
+    .navbar-brand {
+        font-weight: 700;
+        font-size: 1.5rem;
+        color: var(--dragon-blue) !important;
+    }
+    
+    .nav-link {
+        font-weight: 500;
+        padding: 0.75rem 1rem !important;
+        transition: color 0.3s ease;
+        
+        &:hover {
+            color: var(--dragon-blue) !important;
+        }
+    }
+}
+
+// Hero Section
+.hero-section {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    
+    .min-vh-75 {
+        min-height: 75vh;
+    }
+}
+
+// Cards
+.card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: none;
+    
+    &:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important;
+    }
+    
+    .card-img-top {
+        transition: transform 0.3s ease;
+    }
+    
+    &:hover .card-img-top {
+        transform: scale(1.05);
+    }
+}
+
+// Buttons
+.btn {
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    
+    &.btn-primary {
+        background: linear-gradient(45deg, var(--dragon-blue), #3b82f6);
+        border: none;
+        
+        &:hover {
+            background: linear-gradient(45deg, #1d4ed8, var(--dragon-blue));
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+        }
+    }
+}
+
+// Sections
+section {
+    scroll-margin-top: 80px;
+}
+
+// Achievements boxes
+.achievements {
+    .bg-white {
+        transition: transform 0.3s ease;
+        
+        &:hover {
+            transform: translateY(-3px);
+        }
+    }
+}
+
+// Testimonials
+.card-body {
+    .text-warning {
+        font-size: 1.2rem;
+    }
+}
+
+// Footer
+footer {
+    .btn-outline-light {
+        &:hover {
+            background-color: var(--dragon-blue);
+            border-color: var(--dragon-blue);
+        }
+    }
+}
+
+// Responsive images
+img {
+    border-radius: 8px;
+    
+    &.rounded-circle {
+        border-radius: 50% !important;
+    }
+}
+
+// Smooth animations
+* {
+    scroll-behavior: smooth;
+}
+
+// Loading animation
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card, .hero-section h1, .hero-section p {
+    animation: fadeInUp 0.8s ease forwards;
+}
+
+// Mobile responsiveness
+@media (max-width: 768px) {
+    .hero-section {
+        .display-4 {
+            font-size: 2.5rem;
+        }
+        
+        .lead {
+            font-size: 1.1rem;
+        }
+    }
+    
+    .achievements {
+        margin-top: 2rem;
+    }
+}
+
+// Image placeholders for missing images
+.card-img-top, 
+img[src*="/images/"] {
+    background: linear-gradient(45deg, #e9ecef, #dee2e6);
+    position: relative;
+    
+    &::after {
+        content: "📷";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 3rem;
+        opacity: 0.3;
+    }
+}

@@ -417,7 +417,7 @@
                 </a>
 
                 <a class="nav-link {{ request()->routeIs('murid.profile') ? 'active' : '' }}" 
-                   href="#">
+                   href="{{ route('murid.profile') }}">
                     <i class="bi bi-person me-2"></i>
                     <span class="nav-text">Profil Saya</span>
                 </a>
@@ -468,7 +468,7 @@
                                 data-bs-toggle="dropdown" 
                                 aria-expanded="false">
                             <i class="bi bi-person-circle me-2 fs-5"></i>
-                            <span>{{ Auth::user()->name }}</span>
+                            <span>{{ $murid->nama ?? $murid->nama_murid ?? 'Error' }}</span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                             <li>

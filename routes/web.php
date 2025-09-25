@@ -48,6 +48,7 @@ Route::middleware(['auth', 'role:pelatih'])->group(function () {
 Route::middleware(['auth', \App\Http\Middleware\RoleMiddleware::class.':murid'])->prefix('murid')->group(function () {
     Route::get('/dashboard', [MuridController::class, 'dashboard'])->name('murid.dashboard');
     Route::get('/profile', [MuridController::class, 'profile'])->name('murid.profile');
+    Route::put('/profile/update', [MuridController::class, 'updateProfile'])->name('murid.profile.update');
     Route::get('/jadwal', [MuridController::class, 'jadwal'])->name('murid.jadwal');
     Route::get('/iuran', [MuridController::class, 'iuran'])->name('murid.iuran');
     Route::get('/ujian', [MuridController::class, 'ujian'])->name('murid.ujian');

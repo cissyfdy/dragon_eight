@@ -12,7 +12,10 @@ use App\Models\Jadwal;
 use App\Models\Ujian;
 use App\Models\Iuran;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+
 use Exception;
 
 class MuridController extends Controller
@@ -324,32 +327,90 @@ class MuridController extends Controller
         return view('murid.ujian', compact('murid', 'ujianTerdaftar', 'ujianTersedia'));
     }
 
-        public function ujianMurid($murid_id)
-        {
-                $ujianMurid = PendaftaranUjian::where('murid_id', $murid_id)
-                                             ->with(['ujian.unit', 'ujian.pelatih'])
-                                             ->get()
-                                             ->map(function($item) {
-                                                 return [
-                                                     'id' => $item->id,
-                                                     'ujian_id' => $item->ujian->ujian_id,
-                                                     'nama_ujian' => $item->ujian->nama_ujian,
-                                                     'tanggal_ujian' => $item->ujian->tanggal_ujian,
-                                                     'waktu_mulai' => date('H:i', strtotime($item->ujian->waktu_mulai)),
-                                                     'waktu_selesai' => date('H:i', strtotime($item->ujian->waktu_selesai)),
-                                                     'sabuk_dari' => $item->ujian->sabuk_dari,
-                                                     'sabuk_ke' => $item->ujian->sabuk_ke,
-                                                     'biaya_ujian' => $item->ujian->biaya_ujian,
-                                                     'status_pendaftaran' => $item->status_pendaftaran,
-                                                     'status_pembayaran' => $item->status_pembayaran,
-                                                     'tanggal_daftar' => $item->tanggal_daftar,
-                                                     'tanggal_bayar' => $item->tanggal_bayar
-                                                 ];
-                                             })
-                                             ->sortBy('tanggal_ujian');
-                                         
-                return response()->json($ujianMurid->values());
+    public function ujianMurid($murid_id)
+    {
+            $ujianMurid = PendaftaranUjian::where('murid_id', $murid_id)
+                                         ->with(['ujian.unit', 'ujian.pelatih'])
+                                         ->get()
+                                         ->map(function($item) {
+                                             return [
+                                                 'id' => $item->id,
+                                                 'ujian_id' => $item->ujian->ujian_id,
+                                                 'nama_ujian' => $item->ujian->nama_ujian,
+                                                 'tanggal_ujian' => $item->ujian->tanggal_ujian,
+                                                 'waktu_mulai' => date('H:i', strtotime($item->ujian->waktu_mulai)),
+                                                 'waktu_selesai' => date('H:i', strtotime($item->ujian->waktu_selesai)),
+                                                 'sabuk_dari' => $item->ujian->sabuk_dari,
+                                                 'sabuk_ke' => $item->ujian->sabuk_ke,
+                                                 'biaya_ujian' => $item->ujian->biaya_ujian,
+                                                 'status_pendaftaran' => $item->status_pendaftaran,
+                                                 'status_pembayaran' => $item->status_pembayaran,
+                                                 'tanggal_daftar' => $item->tanggal_daftar,
+                                                 'tanggal_bayar' => $item->tanggal_bayar
+                                             ];
+                                         })
+                                         ->sortBy('tanggal_ujian');
+                                     
+            return response()->json($ujianMurid->values());
+    }
+
+    public function updateProfile(Request $request)
+{
+    $user = Auth::user();
+    $murid = Murid::where('id', $user->id)->first();
+
+    if (!$murid) {
+        return redirect()->back()->with('error', 'Data murid tidak ditemukan.');
+    }
+
+    // Validate input
+    $request->validate([
+        'nama' => 'required|string|max:255',
+        'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
+        'no_telp' => 'nullable|string|max:20',
+        'tanggal_lahir' => 'nullable|date',
+        'alamat' => 'nullable|string|max:500',
+    ], [
+        'nama.required' => 'Nama lengkap harus diisi',
+        'nama.max' => 'Nama lengkap maksimal 255 karakter',
+        'email.required' => 'Email harus diisi',
+        'email.email' => 'Format email tidak valid',
+        'email.unique' => 'Email sudah digunakan oleh pengguna lain',
+        'no_telp.max' => 'Nomor telepon maksimal 20 karakter',
+        'tanggal_lahir.date' => 'Format tanggal lahir tidak valid',
+        'alamat.max' => 'Alamat maksimal 500 karakter',
+    ]);
+
+    try {
+        // Update user data
+        $user->name = $request->nama;
+        $user->email = $request->email;
+   
+
+        // Update murid data using the same pattern as your existing code
+        $murid->nama_murid = $request->nama;
+        $murid->alamat = $request->alamat;
+        $murid->tanggal_lahir = $request->tanggal_lahir;
+        
+        // Handle phone number - check which field your table uses
+        if ($request->filled('no_telp')) {
+            // Based on your existing code, it looks like you use 'no_hp'
+            $murid->no_hp = $request->no_telp;
         }
+        
+        $murid->save(); // Use save() method like in your existing update method
+
+        return redirect()->route('murid.profile')
+            ->with('success', 'Profil berhasil diperbarui!');
+
+    } catch (Exception $e) {
+        Log::error('Error updating murid profile: ' . $e->getMessage());
+        
+        return redirect()->back()
+            ->withInput()
+            ->with('error', 'Gagal memperbarui profil. Silakan coba lagi.');
+    }
+}
 
 
 }

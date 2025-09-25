@@ -7,6 +7,7 @@ use App\Models\Jadwal;
 use App\Models\Unit;
 use App\Models\Pelatih;
 use App\Models\PendaftaranJadwal;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
@@ -462,4 +463,10 @@ class JadwalController extends Controller
 
         return response()->json($jadwal);
     }
+
+    public function jadwal()
+{
+    $murid = User::user()->murid; // or however you get the murid relation
+    return view('jadwal', compact('murid'));
+}
 }

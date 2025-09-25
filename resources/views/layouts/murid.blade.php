@@ -423,7 +423,7 @@
                 </a>
                 
                 <a class="nav-link {{ request()->routeIs('murid.jadwal') ? 'active' : '' }}" 
-                   href="#">
+                   href="{{ route('murid.jadwal') }}">
                     <i class="bi bi-calendar3 me-2"></i>
                     <span class="nav-text">Jadwal Latihan</span>
                 </a>

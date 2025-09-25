@@ -429,7 +429,7 @@
                 </a>
                 
                 <a class="nav-link {{ request()->routeIs('murid.jadwal-ujian') ? 'active' : '' }}" 
-                   href="#">
+                   href="{{ route('murid.ujian') }}">
                     <i class="bi bi-award me-2"></i>
                     <span class="nav-text">Jadwal Ujian</span>
                 </a>
@@ -441,7 +441,7 @@
                 </a>
 
                 <a class="nav-link {{ request()->routeIs('murid.tagihan-iuran') ? 'active' : '' }}" 
-                   href="#">
+                   href="{{ route('murid.iuran') }}">
                     <i class="bi bi-wallet me-2"></i>
                     <span class="nav-text">Tagihan Iuran</span>
                 </a>

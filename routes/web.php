@@ -152,6 +152,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/api/ujian-tersedia', [UjianController::class, 'ujianTersedia'])->name('api.ujian.tersedia');
     Route::get('/murid/jadwal/{murid_id}', [MuridController::class, 'jadwalMurid'])->name('api.murid.jadwal.data');
     Route::get('/murid/ujian/{murid_id}', [MuridController::class, 'ujianMurid'])->name('api.murid.ujian.data');
+    Route::get('/murid/ujian/{murid_id}', [UjianController::class, 'ujianMurid'])->name('api.murid.ujian.data');
+    Route::get('/murid/iuran/{murid_id}', [MuridController::class, 'iuranMurid'])->name('api.murid.iuran.data');
     
     // Registration endpoints
     Route::post('/pendaftaran-jadwal/daftar', [JadwalController::class, 'daftarMuridJadwal'])->name('pendaftaran.jadwal.daftar');

@@ -9,7 +9,6 @@ use App\Models\User;
 use App\Models\PendaftaranJadwal;
 use App\Models\PendaftaranUjian;
 use App\Models\Jadwal;
-use App\Models\Ujian;
 use App\Models\Iuran;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
@@ -310,21 +309,17 @@ class MuridController extends Controller
     /**
      * Show murid exams
      */
+    // In your MuridController or wherever you handle the ujian view
     public function ujian()
     {
         $user = Auth::user();
-        // FIXED: Changed from user_id to id
-        $murid = Murid::where('id', $user->id)->first();
-        
-        $ujianTerdaftar = PendaftaranUjian::with('ujian')
-            ->where('murid_id', $murid->murid_id) // Use murid_id for PendaftaranUjian
-            ->get();
+        $murid = $user->murid;
 
-        $ujianTersedia = Ujian::whereNotIn('ujian_id', $ujianTerdaftar->pluck('ujian_id')) // Fixed column names
-            ->where('tanggal_ujian', '>=', now()) // Fixed column name
-            ->get();
+        if (!$murid) {
+            return redirect()->back()->with('error', 'Data murid tidak ditemukan');
+        }
 
-        return view('murid.ujian', compact('murid', 'ujianTerdaftar', 'ujianTersedia'));
+        return view('murid.ujian', compact('murid'));
     }
 
     public function ujianMurid($murid_id)
@@ -355,62 +350,76 @@ class MuridController extends Controller
     }
 
     public function updateProfile(Request $request)
-{
-    $user = Auth::user();
-    $murid = Murid::where('id', $user->id)->first();
+    {
+        $user = Auth::user();
+        $murid = Murid::where('id', $user->id)->first();
 
-    if (!$murid) {
-        return redirect()->back()->with('error', 'Data murid tidak ditemukan.');
-    }
-
-    // Validate input
-    $request->validate([
-        'nama' => 'required|string|max:255',
-        'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
-        'no_telp' => 'nullable|string|max:20',
-        'tanggal_lahir' => 'nullable|date',
-        'alamat' => 'nullable|string|max:500',
-    ], [
-        'nama.required' => 'Nama lengkap harus diisi',
-        'nama.max' => 'Nama lengkap maksimal 255 karakter',
-        'email.required' => 'Email harus diisi',
-        'email.email' => 'Format email tidak valid',
-        'email.unique' => 'Email sudah digunakan oleh pengguna lain',
-        'no_telp.max' => 'Nomor telepon maksimal 20 karakter',
-        'tanggal_lahir.date' => 'Format tanggal lahir tidak valid',
-        'alamat.max' => 'Alamat maksimal 500 karakter',
-    ]);
-
-    try {
-        // Update user data
-        $user->name = $request->nama;
-        $user->email = $request->email;
-   
-
-        // Update murid data using the same pattern as your existing code
-        $murid->nama_murid = $request->nama;
-        $murid->alamat = $request->alamat;
-        $murid->tanggal_lahir = $request->tanggal_lahir;
-        
-        // Handle phone number - check which field your table uses
-        if ($request->filled('no_telp')) {
-            // Based on your existing code, it looks like you use 'no_hp'
-            $murid->no_hp = $request->no_telp;
+        if (!$murid) {
+            return redirect()->back()->with('error', 'Data murid tidak ditemukan.');
         }
-        
-        $murid->save(); // Use save() method like in your existing update method
 
-        return redirect()->route('murid.profile')
-            ->with('success', 'Profil berhasil diperbarui!');
+        // Validate input
+        $request->validate([
+            'nama' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
+            'no_telp' => 'nullable|string|max:20',
+            'tanggal_lahir' => 'nullable|date',
+            'alamat' => 'nullable|string|max:500',
+        ], [
+            'nama.required' => 'Nama lengkap harus diisi',
+            'nama.max' => 'Nama lengkap maksimal 255 karakter',
+            'email.required' => 'Email harus diisi',
+            'email.email' => 'Format email tidak valid',
+            'email.unique' => 'Email sudah digunakan oleh pengguna lain',
+            'no_telp.max' => 'Nomor telepon maksimal 20 karakter',
+            'tanggal_lahir.date' => 'Format tanggal lahir tidak valid',
+            'alamat.max' => 'Alamat maksimal 500 karakter',
+        ]);
 
-    } catch (Exception $e) {
-        Log::error('Error updating murid profile: ' . $e->getMessage());
+        try {
+            // Update user data
+            $user->name = $request->nama;
+            $user->email = $request->email;
         
-        return redirect()->back()
-            ->withInput()
-            ->with('error', 'Gagal memperbarui profil. Silakan coba lagi.');
+
+            // Update murid data using the same pattern as your existing code
+            $murid->nama_murid = $request->nama;
+            $murid->alamat = $request->alamat;
+            $murid->tanggal_lahir = $request->tanggal_lahir;
+
+            // Handle phone number - check which field your table uses
+            if ($request->filled('no_telp')) {
+                // Based on your existing code, it looks like you use 'no_hp'
+                $murid->no_hp = $request->no_telp;
+            }
+
+            $murid->save(); // Use save() method like in your existing update method
+
+            return redirect()->route('murid.profile')
+                ->with('success', 'Profil berhasil diperbarui!');
+
+        } catch (Exception $e) {
+            Log::error('Error updating murid profile: ' . $e->getMessage());
+
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Gagal memperbarui profil. Silakan coba lagi.');
+        }
     }
-}
-
+    public function iuranMurid($muridId)
+    {
+        try {
+            $iuran = DB::table('iuran')
+                ->where('murid_id', $muridId)
+                ->orderBy('tahun', 'desc')
+                ->orderByRaw("FIELD(bulan, 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember')")
+                ->get();
+                
+            return response()->json($iuran->toArray());
+        } catch (\Exception $e) {
+            Log::error('Error in iuranMurid: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to fetch student fees: ' . $e->getMessage()], 500);
+        }
+    }
 
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Ujian;
 use App\Models\Unit;
 use App\Models\Pelatih;
+use App\Models\Murid;
 use App\Models\PendaftaranUjian;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -339,4 +340,6 @@ class UjianController extends Controller
             'message' => 'Pembayaran berhasil dikonfirmasi. Status berubah menjadi Diterima.'
         ]);
     }
+
+
 }

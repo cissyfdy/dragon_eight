@@ -435,7 +435,7 @@
                 </a>
                 
                 <a class="nav-link {{ request()->routeIs('murid.absensi') ? 'active' : '' }}" 
-                   href="#">
+                   href="{{ route('murid.absensi') }}">
                     <i class="bi bi-check2-square me-2"></i>
                     <span class="nav-text">Absensi</span>
                 </a>

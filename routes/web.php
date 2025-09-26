@@ -52,6 +52,9 @@ Route::middleware(['auth', \App\Http\Middleware\RoleMiddleware::class.':murid'])
     Route::get('/jadwal', [MuridController::class, 'jadwal'])->name('murid.jadwal');
     Route::get('/iuran', [MuridController::class, 'iuran'])->name('murid.iuran');
     Route::get('/ujian', [MuridController::class, 'ujian'])->name('murid.ujian');
+    Route::get('/absensi', [MuridController::class, 'absensi'])->name('murid.absensi');
+    Route::get('/absensi/{murid_id}', [MuridController::class, 'absensiData'])->name('murid.absensi.data');
+
     
     // Pendaftaran jadwal
     Route::post('/jadwal/daftar', [JadwalController::class, 'daftarMuridJadwal'])->name('murid.jadwal.daftar');
@@ -154,7 +157,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/murid/ujian/{murid_id}', [MuridController::class, 'ujianMurid'])->name('api.murid.ujian.data');
     Route::get('/murid/ujian/{murid_id}', [UjianController::class, 'ujianMurid'])->name('api.murid.ujian.data');
     Route::get('/murid/iuran/{murid_id}', [MuridController::class, 'iuranMurid'])->name('api.murid.iuran.data');
-    
+     Route::get('/api/absensi/{murid_id}', [MuridController::class, 'absensiData'])->name('api.murid.absensi.data');
+     
     // Registration endpoints
     Route::post('/pendaftaran-jadwal/daftar', [JadwalController::class, 'daftarMuridJadwal'])->name('pendaftaran.jadwal.daftar');
     Route::delete('/pendaftaran-jadwal/batal/{id}', [JadwalController::class, 'batalJadwalMurid'])->name('pendaftaran.jadwal.batal');

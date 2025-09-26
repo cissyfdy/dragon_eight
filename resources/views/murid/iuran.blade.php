@@ -16,12 +16,6 @@
             border-left: 4px solid #28a745;
             margin-bottom: 1rem;
         }
-        .fee-header {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-            color: white;
-            padding: 1.5rem;
-            border-radius: 0.375rem 0.375rem 0 0;
-        }
         .status-badge {
             font-size: 0.875rem;
             padding: 0.375rem 0.75rem;
@@ -58,7 +52,7 @@
         <div class="row">
             <div class="col-12">
                 <!-- Header Section -->
-                <div class="fee-header mb-4">
+                <div class="header-section mb-4">
                     <div class="row align-items-center">
                         <div class="col-md-8">
                             <h1 class="mb-2">
@@ -137,9 +131,6 @@
                                 <button class="btn btn-outline-secondary me-2" onclick="resetFilters()">
                                     <i class="bi bi-x-circle me-1"></i>Reset
                                 </button>
-                                <button class="btn btn-primary" onclick="exportData()">
-                                    <i class="bi bi-download me-1"></i>Export
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -157,12 +148,11 @@
                                         <th><i class="bi bi-check-circle me-1"></i>Status</th>
                                         <th><i class="bi bi-calendar-event me-1"></i>Tanggal Bayar</th>
                                         <th><i class="bi bi-clock-history me-1"></i>Terlambat</th>
-                                        <th><i class="bi bi-gear me-1"></i>Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody id="iuranTableBody">
                                     <tr>
-                                        <td colspan="6" class="loading">
+                                        <td colspan="5" class="loading">
                                             <div class="spinner-border spinner-border-sm me-2" role="status">
                                                 <span class="visually-hidden">Loading...</span>
                                             </div>
@@ -185,42 +175,6 @@
         </div>
     </div>
 
-    <!-- Payment Confirmation Modal -->
-    <div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="paymentModalLabel">Konfirmasi Pembayaran</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="paymentForm">
-                        <div class="mb-3">
-                            <label class="form-label">Bulan/Tahun</label>
-                            <input type="text" class="form-control" id="paymentPeriod" readonly>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Nominal</label>
-                            <input type="text" class="form-control" id="paymentAmount" readonly>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Tanggal Bayar</label>
-                            <input type="date" class="form-control" id="paymentDate" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Catatan (Opsional)</label>
-                            <textarea class="form-control" id="paymentNote" rows="2" placeholder="Tambahkan catatan pembayaran..."></textarea>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                    <button type="button" class="btn btn-success" onclick="confirmPayment()">Konfirmasi Pembayaran</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script>
         // Get CSRF token
         const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -230,7 +184,6 @@
         
         let allIuranData = [];
         let filteredData = [];
-        let currentPaymentId = null;
 
         // Load data when page loads
         document.addEventListener('DOMContentLoaded', function() {
@@ -248,7 +201,7 @@
             // Show loading state
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="6" class="loading">
+                    <td colspan="5" class="loading">
                         <div class="spinner-border spinner-border-sm me-2" role="status">
                             <span class="visually-hidden">Loading...</span>
                         </div>
@@ -318,14 +271,6 @@
                         <td>${statusBadge}</td>
                         <td>${tanggalBayar}</td>
                         <td>${overdueText}</td>
-                        <td>
-                            ${iuran.status === 'Belum Lunas' ? 
-                                `<button class="btn btn-sm btn-success" onclick="showPaymentModal(${iuran.iuran_id}, '${iuran.bulan} ${iuran.tahun}', ${iuran.nominal})">
-                                    <i class="bi bi-credit-card me-1"></i>Bayar
-                                </button>` : 
-                                `<span class="text-muted">Sudah Lunas</span>`
-                            }
-                        </td>
                     </tr>
                 `;
             }).join('');
@@ -392,75 +337,6 @@
             updateSummaryCards(filteredData);
         }
 
-        function showPaymentModal(iuranId, period, amount) {
-            currentPaymentId = iuranId;
-            document.getElementById('paymentPeriod').value = period;
-            document.getElementById('paymentAmount').value = formatCurrency(amount);
-            document.getElementById('paymentDate').value = new Date().toISOString().split('T')[0];
-            document.getElementById('paymentNote').value = '';
-            
-            const modal = new bootstrap.Modal(document.getElementById('paymentModal'));
-            modal.show();
-        }
-
-        function confirmPayment() {
-            if (!currentPaymentId) return;
-
-            const paymentDate = document.getElementById('paymentDate').value;
-            const paymentNote = document.getElementById('paymentNote').value;
-
-            if (!paymentDate) {
-                alert('Tanggal bayar harus diisi!');
-                return;
-            }
-
-            const formData = {
-                tanggal_bayar: paymentDate,
-                catatan: paymentNote
-            };
-
-            fetch(`/iuran/bayar/${currentPaymentId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': csrfToken
-                },
-                body: JSON.stringify(formData)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Hide modal
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('paymentModal'));
-                    modal.hide();
-                    
-                    // Show success message
-                    alert('Pembayaran berhasil dikonfirmasi!');
-                    
-                    // Reload data
-                    loadIuranMurid();
-                } else {
-                    alert('Gagal mengkonfirmasi pembayaran: ' + (data.message || 'Unknown error'));
-                }
-            })
-            .catch(error => {
-                console.error('Error confirming payment:', error);
-                alert('Terjadi kesalahan saat mengkonfirmasi pembayaran.');
-            });
-        }
-
-        function exportData() {
-            const tahunFilter = document.getElementById('filterTahun').value;
-            const statusFilter = document.getElementById('filterStatus').value;
-            
-            let url = `/iuran/export?murid_id=${muridId}`;
-            if (tahunFilter) url += `&tahun=${tahunFilter}`;
-            if (statusFilter) url += `&status=${statusFilter}`;
-            
-            window.open(url, '_blank');
-        }
-
         function checkOverdue(iuran) {
             if (iuran.status === 'Lunas') return false;
             
@@ -508,7 +384,7 @@
             
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="6" class="error-message">
+                    <td colspan="5" class="error-message">
                         <i class="bi bi-exclamation-triangle me-2"></i>
                         ${message}
                     </td>

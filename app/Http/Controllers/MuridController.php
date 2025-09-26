@@ -422,4 +422,70 @@ class MuridController extends Controller
         }
     }
 
+    public function absensi()
+    {
+        $user = Auth::user();
+        $murid = Murid::where('id', $user->id)->first();
+
+        if (!$murid) {
+            return redirect()->route('login')->with('error', 'Data murid tidak ditemukan.');
+        }
+
+        $absensi = DB::table('jadwal_murid as jm')
+            ->join('jadwal as j', 'jm.jadwal_id', '=', 'j.jadwal_id')
+            ->join('unit as u', 'j.unit_id', '=', 'u.unit_id')
+            ->join('pelatih as p', 'j.pelatih_id', '=', 'p.pelatih_id')
+            ->where('jm.murid_id', $murid->murid_id)
+            ->select([
+                'jm.*',
+                'j.hari',
+                'j.jam_mulai',
+                'j.jam_selesai',
+                'u.nama_unit',
+                'p.nama_pelatih'
+            ])
+            ->orderBy('jm.tanggal_latihan', 'desc')
+            ->paginate(20);
+            
+        return view('murid.absensi', compact('murid', 'absensi'));
+    }
+
+    public function absensiData($murid_id)
+    {
+        try {
+            $absensi = DB::table('jadwal_murid as jm')
+                ->join('jadwal as j', 'jm.jadwal_id', '=', 'j.jadwal_id')
+                ->join('unit as u', 'j.unit_id', '=', 'u.unit_id')
+                ->join('pelatih as p', 'j.pelatih_id', '=', 'p.pelatih_id')
+                ->where('jm.murid_id', $murid_id)
+                ->whereNotNull('jm.status_kehadiran') // Only get records with attendance status
+                ->select([
+                    'jm.id',
+                    'jm.jadwal_id',
+                    'jm.murid_id',
+                    'jm.tanggal_latihan',
+                    'jm.status_kehadiran',
+                    'jm.catatan',
+                    'j.hari',
+                    'j.jam_mulai',
+                    'j.jam_selesai',
+                    'u.nama_unit',
+                    'p.nama_pelatih'
+                ])
+                ->orderBy('jm.tanggal_latihan', 'desc')
+                ->get();
+                
+            return response()->json([
+                'success' => true,
+                'data' => $absensi
+            ]);
+            
+        } catch (Exception $e) {
+            Log::error('Error in absensiData: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'error' => 'Gagal mengambil data absensi: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
